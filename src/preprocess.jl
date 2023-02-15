@@ -1,7 +1,7 @@
 #!/usr/local/bin julia
 # coding=utf-8
 
-# Utility functions for .jl
+# Utility functions for SAP.jl
 
 # These functions were taken from SeisNoise julia package
 # see more in github.com/tclements/SeisNoise.jl

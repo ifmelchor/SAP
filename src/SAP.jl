@@ -8,6 +8,7 @@ __precompile__()
 module SAP
 
     using LinearAlgebra
+    using Statistics
     
     export CC8
 

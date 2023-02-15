@@ -9,7 +9,7 @@
 # Ivan Melchor 2023
 
 
-function array_response(x::Vector{T}, y::Vector{T}, smax::T, ds::T, f1::T, f2::T, df::T) where T<:Real
+function array_response(x::AbstractArray{T}, y::AbstractArray{T}, smax::T, ds::T, f1::T, f2::T, df::T) where T<:Real
 
    freqs = f1:df:f2
    s     = -smax:ds:smax

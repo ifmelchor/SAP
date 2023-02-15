@@ -5,11 +5,6 @@
 
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
-# include("types.jl")
-
-using Statistics
-using DSP
-
 """
   r2p(x, y)
     
@@ -49,7 +44,7 @@ function r2p(x::T, y::T) where T<:Real
 end
 
 
-function bm2(msum::Array{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where T<:Real
+function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where T<:Real
   nite = size(msum, 1)
   bnd = Bounds(666., -1., 666., -1.)
   q = Array{Float64}(undef, nite, nite)
@@ -123,7 +118,7 @@ end
     Devuelve las coordenadas de la estacion de referencia
     
 """
-function refsta(station_list::Vector{xySta})
+function refsta(station_list::Vector{xySta{T}}) where T <: Real
   nsta = length(station_list)
   xref = sum([sta.x for sta in station_list])
   yref = sum([sta.y for sta in station_list])
@@ -131,23 +126,3 @@ function refsta(station_list::Vector{xySta})
   return (xref/nsta, yref/nsta)
 end
 
-
-"""
-    _filt(*args)
-
-Filter data between fq_band
-"""
-function _filt(data::Array{T}, fq_band::Tuple{T, T}, fs::J; ctr::Bool=true, buttorder::J=4) where T<:Real where J <:Int
-
-    # filter data (with zero phase distortion) of buterworth of order 4
-
-    if ctr
-        data .-= mean(data)
-    end
-
-    responsetype = Bandpass(fq_band[1], fq_band[2], fs=fs)
-    designmethod = Butterworth(buttorder)
-    datafilt = filtfilt(digitalfilter(responsetype, designmethod), data)
-
-    return datafilt
-end
