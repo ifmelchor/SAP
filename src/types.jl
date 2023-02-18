@@ -13,26 +13,12 @@ mutable struct Bounds{T<:Real}
 end
 
 
-struct xySta{T<:Real}
-  x :: T
-  y :: T
-end
-
-
-struct BaseParams{T<:Real,J<:Int}
-  data    :: Array{T}
-  stalist :: Vector{xySta{T}}
-  xref    :: T
-  yref    :: T
-  ccerr   :: T                      #  --> correlation level
-  fsem    :: J                      #  --> sampling rate
-  lwin    :: J                      #  --> time window length
+struct BaseParams{T<:Real,J<:Integer}
+  nites   :: Vector{J}              #  --> maximum slownes for the grid
   nwin    :: J                      #  --> number of time windows
-  nadv    :: T                      #  --> percentage of time advance (0--1)
-  pmax    :: Vector{T}              #  --> maximum slownes for the grid
-  pinc    :: Vector{T}              #  --> slownes interval for the grid
+  nsta    :: J                      #  --> number of stations
+  lwin    :: J                      #  --> time window length
   citer   :: Vector{Tuple{J,J}}
-  toff    :: J
 end
 
 
@@ -42,7 +28,7 @@ struct ArrayResponse{T<:Real}
     y     :: AbstractArray{T}                #  Cartesian y-coordinates in each station (km)
     sx    :: AbstractArray{T}                #  Horizontal slownesses in s/km in x-direction of beamforming grid (first dimension)
     sy    :: AbstractArray{T}                #  Horizontal slownesses in s/km in y-direction of beamforming grid (second dimension)
-    power :: AbstractArray{T,2}               #  Power of array response at each (sx, sy) point
+    power :: AbstractArray{T,2}              #  Power of array response at each (sx, sy) point
     
 end
 

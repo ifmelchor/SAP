@@ -4,180 +4,146 @@
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
 
-# me gustaría añadir varias cosas
-#  1: loop sobre rangos de frequencia. Esto hace que debamos filtrar directamente en julia y no en seisvo, como esta hecho. 
-#  2: guardar info para poder calcular la funcion de transferencia por ventana de calculo
-
-
-function CC8(data::Union{Array{T}, Nothing}, xStaUTM::Vector{T}, yStaUTM::Vector{T}, pmax::Vector{T}, pinc::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T, toff::J) where T<:Real where J<:Integer
+function CC8(data::Array{T}, xStaUTM::Vector{T}, yStaUTM::Vector{T}, pmax::Vector{T}, pinc::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T, toff::J) where T<:Real where J<:Integer
     
-    length(xStaUTM) == length(yStaUTM) ||
-        throw(DimensionMismatch("xStaUTM and yStaUTM coordinate vectors not the same length"))
+    # define delta time function
+    dtime = _dtimefunc(xStaUTM, yStaUTM, fsem)
 
-    # define baseparams
-    nsta = length(xStaUTM)
-    xysta = [xySta(xStaUTM[s], yStaUTM[s]) for s in 1:nsta]
-    refxy = refsta(xysta)
+    # define base params
+    nsta   = length(xStaUTM)
+    cciter = _cciter(nsta)
+    nites  = _nites(pmax, pinc)
+    toff   = floor(Int64, toff*fsem)
+    base   = BaseParams(nites, nwin, nsta, lwin, cciter)
 
-    # array resp
-    # if aresp
-    #     pmax_f = findmax(pmax)
-    #     smax   = pmax_f[1]
-    #     ds  = pinc[pmax_f[2]]
-    #     f1  = findmin([x[1] for x in fqband])[1]
-    #     f2  = findmax([x[2] for x in fqband])[1]
-    #     arf = array_response(xStaUTM, yStaUTM, smax, ds, f1, f2, 0.1)
-    # else
-    #     arf = nothing
-    # end
-
-    cciter = Vector{Tuple{Int,Int}}()
-    for ii in 1:nsta-1
-        for jj in ii+1:nsta
-            push!(cciter, (ii, jj))
-        end
-    end
-
-    base = BaseParams(data, xysta, refxy[1], refxy[2], ccerr, fsem, lwin, nwin, nadv, pmax, pinc, cciter, toff*fsem)
-    res = _core(base)
-
-    return res
-end
-
-
-function _idx(ip::J, nite::J, pxy0::Vector{T}, base::BaseParams) where J<:Integer where T<:Real 
-    pxx = Array{Float64}(undef, nite)
-    pyy = Array{Float64}(undef, nite)
-    for i in 1:nite
-        # for x
-        px = pxy0[1] - base.pmax[ip] + base.pinc[ip]*(i-1)
-        pxx[i] = base.pinc[ip] * floor(Int64, px/base.pinc[ip])
-        # for y
-        py = pxy0[2] - base.pmax[ip] + base.pinc[ip]*(i-1)
-        pyy[i] = base.pinc[ip] * floor(Int64, py/base.pinc[ip])
-    end
-
-    return [[px, py] for px in pxx for py in pyy]
-end
-
-
-"""
-   _pccorr(*args)
-
-Calcula la correlacion cruzada para un slowness y banda de frequencia
-"""
-function _pccorr(nkk::J, pxy::Vector{T}, base::BaseParams) where J<:Integer where T<:Real
-    # compute delat times for each station
-    dtimes = [pxy[1]*(sta.x-base.xref) + pxy[2]*(sta.y-base.yref) for sta in base.stalist]
-    
-    # filter data
-    # fq_band = base.fqbands[nfq]
-
-    # build cc matrix
-    nsta = length(base.stalist)
-    cc = zeros(Real, nsta, nsta)
-    for ii in 1:nsta
-        mii = nkk + floor(Int64, base.fsem*dtimes[ii])
-        dii = @view base.data[ii, 1+mii:base.lwin+mii]
-        
-        for jj in ii:nsta
-            mjj = nkk + floor(Int64, base.fsem*dtimes[jj])
-            djj = @view base.data[jj, 1+mjj:base.lwin+mjj]
-            cc[ii,jj] += dot(dii,djj)
-        end
-    end
-
-    # computes crosscorr coefficient
-    suma = sum([cc[ii,jj]/sqrt(cc[ii,ii]*cc[jj,jj]) for (ii, jj) in base.citer])
-    return (2*suma + nsta) / nsta^2
-end
-
-
-function _rms(nkk::J, pxy::Vector{T}, base::BaseParams) where J<:Integer where T<:Real
-
-    dtimes = [pxy[1]*(sta.x-base.xref) + pxy[2]*(sta.y-base.yref) for sta in base.stalist]
-
-    erg = 0.
-    nsta = length(base.stalist)
-    for ii in 1:nsta
-        mii = nkk + floor(Int64, base.fsem*dtimes[ii])
-        dii = @view base.data[ii, 1+mii:base.lwin+mii]
-        erg += sqrt(mean(dii.*dii))
-    end
-    
-    return erg /= nsta
-end
-
-
-"""
-   _empty_dict(*args)
-
-Genera un dict vacio para llenar durante el procesado.
-"""
-function _empty_dict(base::BaseParams)
-    dict = Dict()
-    nip = length(base.pmax)
-
-    for ip in 1:nip
-        dict[ip] = Dict()
-        nite = 1 + 2*floor(Int64, base.pmax[ip]/base.pinc[ip])
-
-        for attr in ("slow", "maac", "bazm", "rms")
-            dict[ip][attr] = Array{Float64}(undef, base.nwin)
-        end
-
-        dict[ip]["slomap"] = Array{Float64}(undef, base.nwin, nite, nite)
-    end
-
-
-    return dict
-end
-
-
-function _core(base::BaseParams)
     # initialize variables
     dict = _empty_dict(base)
 
-    pxy0 = [0.,0.]
-    for ip in 1:length(base.pmax)  
-        nite = 1 + 2*floor(Int64, base.pmax[ip]/base.pinc[ip])
-        pxylist = _idx(ip, nite, pxy0, base)
-        
-        best_maac = -1.
-        best_pxy  = [0.,0.]
-        for nk in 1:base.nwin
-            n0  = 1 + base.toff + floor(Int64, base.lwin*base.nadv*(nk-1))
-            ccmap = map(pxyl->_pccorr(n0, pxyl, base), pxylist)
+    # init pxy
+    pxy0::Vector{Float64} = [0.,0.]
+    
+    # loop over slowness domain
+    for ip in 1:length(nites)
+        # create slowness grid
+        pxy_map  = _pxymap(pxy0, nites[ip], pinc[ip], pmax[ip])
 
-            # find max
+        # create delta times grid
+        time_map = _dtimemap(dtime, pxy_map, nsta)
+        
+        # init params
+        best_maac::Float64 = -1.
+        best_pxy::Vector{Float64} = [0., 0.]
+
+        # iterate over time
+        for nk in 1:nwin
+            n0  = 1 + toff + floor(Int64, lwin*nadv*(nk-1)) 
+
+            # get ccmap
+            ccmap = _ccmap(data, n0, nites[ip], time_map, base)
+            
+            # find max value
             ccmax = findmax(ccmap)
             maac  = ccmax[1]
-            px = pxylist[ccmax[2]][1]
-            py = pxylist[ccmax[2]][2]
+            (ii, jj) = ccmax[2].I
+            dict[ip]["maac"][nk] = maac  # save max correlation coef
             
-            slow, bazm = r2p(-px, -py)
-            dict[ip]["rms"][nk] = _rms(n0, [px,py], base)
+            best_pxy_n = pxy_map[ii, jj, :]
+            slow, bazm = r2p(-1 .* best_pxy_n)
             dict[ip]["slow"][nk] = slow
             dict[ip]["bazm"][nk] = bazm
-            dict[ip]["maac"][nk] = maac
-            dict[ip]["slomap"][nk,:,:] = reshape(ccmap, nite, nite)
-
-            # get the best pxy
+            dict[ip]["rms"][nk]  = _rms(data, n0, time_map[ii, jj, :], base)  # save rms of the best ccorr
+            dict[ip]["slowmap"][nk,:,:] = ccmap
+           
+            # get bounds
+            bounds = bm2(ccmap, pmax[ip], pinc[ip], maac, ccerr)
+            dict[ip]["slowbnd"][nk,:] = [bounds.slomin, bounds.slomax]
+            dict[ip]["bazmbnd"][nk,:] = [bounds.azimin, bounds.azimax]
+            
             if maac > best_maac
                 best_maac = maac
-                best_pxy = [px, py]
+                best_pxy = best_pxy_n
             end
         end
 
-        # change px0 py0 and keep computing with next slowness domain only if
-        # best macc > ccerr
-        if best_maac > base.ccerr
-            pxy0 = best_pxy
-        else
-            break
-        end
         
+        if best_maac > ccerr
+            pxy0 = best_pxy
+        end
     end
 
     return dict
+end
+
+
+function _pxymap(pxy0::Vector{T}, nite::J, pinc::T, pmax::T) where {T<:Real, J<:Integer}
+    pxy_map = Array{Float64}(undef, nite, nite, 2)
+    
+    for ii in 1:nite # for x
+        px = pxy0[1] - pmax + pinc*(ii-1)
+        pxi = pinc * floor(Int64, px/pinc)
+        for jj in 1:nite # for y
+            py = pxy0[2] - pmax + pinc*(ii-1)
+            pyj = pinc * floor(Int64, py/pinc)
+            pxy_map[ii,jj,:] = [pxi,pyj]
+        end
+    end
+    
+    pxy_map[:,:,2] = adjoint(pxy_map[:,:,2])
+    return pxy_map
+end
+
+
+function _dtimemap(dtime_func::Function, pxy_map::Array{T}, nsta::J) where {T<:Real, J<:Integer}
+    nite = size(pxy_map, 1)
+    time_map = Array{Int}(undef, nite, nite, nsta)
+    for ii in 1:nite
+        for jj in 1:nite
+            time_map[ii,jj,:] = dtime_func(pxy_map[ii,jj,:])
+        end
+    end
+
+    return time_map
+end
+
+
+function _pccorr(data::Array{T}, nkk::J, pxytime::Vector{J}, base::BaseParams) where {T<:Real, J<:Integer}
+    cc = zeros(Float64, base.nsta, base.nsta)
+    for ii in 1:base.nsta
+        mii = nkk + pxytime[ii]
+        dii = @view data[ii, mii:base.lwin+mii]
+        for jj in ii:base.nsta
+            mjj = nkk + pxytime[jj]
+            djj = @view data[jj, mjj:base.lwin+mjj]
+            cc[ii,jj] += dot(dii,djj)
+        end
+    end
+    # computes crosscorr coefficient
+    suma = 2*sum([cc[ii,jj]/sqrt(cc[ii,ii]*cc[jj,jj]) for (ii, jj) in base.citer])
+    return (suma+base.nsta) / (base.nsta*base.nsta)
+end
+
+
+function _ccmap(data::Array{T}, n0::J, nite::J, time_map::Array{J}, base::BaseParams) where {T<:Real, J<:Integer}
+    cc_map = zeros(Float64, nite, nite)
+    
+    for ii in 1:nite # for x
+       for jj in 1:nite # for y
+          cc_map[ii,jj] = _pccorr(data, n0, time_map[ii,jj,:], base)
+       end
+    end
+    
+    return cc_map
+end
+
+
+function _rms(data::Array{T}, nkk::J, pxytime::Vector{J}, base::BaseParams) where J<:Integer where T<:Real
+
+    erg = 0.
+    for ii in 1:base.nsta
+        mii = nkk + pxytime[ii]
+        dii = @view data[ii, 1+mii:base.lwin+mii]
+        erg += sqrt(mean(dii.*dii))
+    end
+    
+    return erg /= base.nsta
 end

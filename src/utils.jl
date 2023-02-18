@@ -5,6 +5,72 @@
 
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
+
+"""
+   _empty_dict(*args)
+
+Genera un dict vacio para llenar durante el procesado.
+"""
+function _empty_dict(base::BaseParams)
+    dict = Dict()
+    
+    for ip in 1:length(base.nites)
+        dict[ip] = Dict()
+        nite = base.nites[ip]
+
+        for attr in ("slow", "maac", "bazm", "rms")
+            dict[ip][attr] = Array{Float64}(undef, base.nwin)
+        end
+
+        dict[ip]["slowmap"] = Array{Float64}(undef, base.nwin, nite, nite)
+        dict[ip]["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
+        dict[ip]["bazmbnd"] = Array{Float64}(undef, base.nwin, 2)
+    end
+
+
+    return dict
+end
+
+"""
+   _dtimefunc(*args)
+
+Genera la función que devuelve los delta times para un vector de lentidud aparente
+"""
+function _dtimefunc(stax::Vector{T}, stay::Vector{T}, fsem::J) where {T<:Real, J<:Integer}
+    xref = mean(xStaUTM)
+    yref = mean(yStaUTM)
+    dtime(pxy) = floor.(Int, [pxy[1]*(stx-xref) + pxy[2]*(sty-yref) for (stx, sty) in zip(stax,stay)] .* fsem)
+
+    return dtime
+end
+
+
+function _cciter(nsta::J) where J<:Integer
+  
+  cciter = Vector{Tuple{Int,Int}}()
+  for ii in 1:nsta-1
+      for jj in ii+1:nsta
+          push!(cciter, (ii, jj))
+      end
+  end
+
+  return cciter
+end
+
+
+"""
+   _nites(*args)
+
+Genera una lista con el número de intervalos de lentitud aparente
+"""
+function _nites(pmax::Vector{T}, pinc::Vector{T})
+  
+  nites = [1 + 2*floor(Int64, i/j) for (i, j) in zip(pmax, pinc)]
+
+  return nites
+end
+
+
 """
   r2p(x, y)
     
@@ -12,7 +78,10 @@
     
 """
 
-function r2p(x::T, y::T) where T<:Real
+function r2p(pxy::Vector{T}) where T<:Real
+  x = pxy[1]
+  y = pxy[2]
+
   slowness = sqrt(x^2 + y^2)
   azimuth = 180.
   
@@ -43,7 +112,12 @@ function r2p(x::T, y::T) where T<:Real
   return (slowness, azimuth)
 end
 
-
+"""
+  r2p(x, y)
+    
+    Get slowness and back-azimuth bounds
+    
+"""
 function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where T<:Real
   nite = size(msum, 1)
   bnd = Bounds(666., -1., 666., -1.)
@@ -64,7 +138,7 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
         
         for x in (-px+pinc, -px-pinc)
           for y in (-py+pinc, -py-pinc)
-            s, a = r2p(x, y)
+            s, a = r2p([x, y])
             if ( s > bnd.slomax ) ; bnd.slomax = s end
             if ( s < bnd.slomin ) ; bnd.slomin = s end
             if ( a > bnd.azimax ) ; bnd.azimax = a end
@@ -96,7 +170,7 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
         if convert(Bool, q[i,j])
           for x in [-px+pinc, -px-pinc]
             for y in [-py+pinc, -py-pinc]
-              s, a = r2p(x, y)
+              s, a = r2p([x, y])
               if ( x > 0 ) && ( a > bnd.azimax ) ; bnd.azimax = a end
               if ( x < 0 ) && ( a < bnd.azimin ) ; bnd.azimin = a end
             end
@@ -112,17 +186,4 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
 end
 
 
-"""
-  refsta(x, y)
-    
-    Devuelve las coordenadas de la estacion de referencia
-    
-"""
-function refsta(station_list::Vector{xySta{T}}) where T <: Real
-  nsta = length(station_list)
-  xref = sum([sta.x for sta in station_list])
-  yref = sum([sta.y for sta in station_list])
-  
-  return (xref/nsta, yref/nsta)
-end
 
