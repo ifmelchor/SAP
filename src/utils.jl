@@ -5,6 +5,7 @@
 
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
+using PointwiseKDEs
 
 """
    _empty_dict(*args)
@@ -63,7 +64,7 @@ end
 
 Genera una lista con el número de intervalos de lentitud aparente
 """
-function _nites(pmax::Vector{T}, pinc::Vector{T})
+function _nites(pmax::Vector{T}, pinc::Vector{T}) where T<:Real
   
   nites = [1 + 2*floor(Int64, i/j) for (i, j) in zip(pmax, pinc)]
 
@@ -113,7 +114,7 @@ function r2p(pxy::Vector{T}) where T<:Real
 end
 
 """
-  r2p(x, y)
+  bm2(*args)
     
     Get slowness and back-azimuth bounds
     
@@ -186,4 +187,65 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
 end
 
 
+"""
+  spb(args)
+    
+    Compute the maac probability map
+    
+"""
 
+function mpm(slowmap::Array{T,3})  where T<:Real
+  
+  nite = size(slowmap, 2)
+  spbmap = Array{T}(undef, nite, nite)
+
+  for ii in 1:nite
+    for jj in 1:nite
+      data = reshape(slowmap[:,ii,jj], (1, :))
+      data = convert(Array{Float64}, data)
+      data_min = findmin(data)[1]
+      data_max = findmax(data)[1]
+      x_space = LinRange(data_min, data_max, 100)
+      kde = PointwiseKDE(data)
+      y_space = rand(kde, 100)
+      cc_ij = x_space[findmax(y_space)[2][2]]
+      spbmap[ii,jj] = cc_ij
+    end
+  end
+    
+  return spbmap
+end
+
+
+"""
+  spb(args)
+    
+    Compute the slowmness and back_azimuth time map
+    
+"""
+
+function slobaztmap(slowmap::Array{T,3}, pinc::J, pmax::J, cc_th::J)  where {T<:Real, J<:Real}
+
+  nwin = size(slowmap, 1)
+  nite = size(slowmap, 2)
+
+  pxymap = _pxymap([0.,0.], nite, pinc, pmax)
+  sbtm = Array{Vector{Tuple{T,T}}}(undef, nwin)
+
+  for t in 1:nwin
+    data = slowmap[t,:,:]
+
+    sbtm_t = Vector{Tuple{T,T}}()
+    for ii in 1:nite
+      for jj in 1:nite
+        if data[ii,jj] > cc_th
+          push!(sbtm_t, r2p(-1 .* pxymap[ii,jj,:]))
+        end
+      end
+    end
+
+    sbtm[t] = sbtm_t
+  end
+
+  return sbtm
+end
