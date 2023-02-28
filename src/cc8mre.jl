@@ -4,7 +4,7 @@
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
 
-function CC8(data::Array{T}, xStaUTM::Vector{T}, yStaUTM::Vector{T}, pmax::Vector{T}, pinc::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T, toff::J) where T<:Real where J<:Integer
+function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, pmax::Array{T}, pinc::Array{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T, toff::J) where T<:Real where J<:Integer
     
     # define delta time function
     dtime = _dtimefunc(xStaUTM, yStaUTM, fsem)
@@ -14,7 +14,7 @@ function CC8(data::Array{T}, xStaUTM::Vector{T}, yStaUTM::Vector{T}, pmax::Vecto
     cciter = _cciter(nsta)
     nites  = _nites(pmax, pinc)
     toff   = floor(Int64, toff*fsem)
-    base   = BaseParams(nites, nwin, nsta, lwin, cciter)
+    base   = Base(nites, nwin, nsta, lwin, cciter)
 
     # initialize variables
     dict = _empty_dict(base)
@@ -106,7 +106,7 @@ function _dtimemap(dtime_func::Function, pxy_map::Array{T}, nsta::J) where {T<:R
 end
 
 
-function _pccorr(data::Array{T}, nkk::J, pxytime::Vector{J}, base::BaseParams) where {T<:Real, J<:Integer}
+function _pccorr(data::Array{T}, nkk::J, pxytime::Vector{J}, base::Base) where {T<:Real, J<:Integer}
     cc = zeros(Float64, base.nsta, base.nsta)
     for ii in 1:base.nsta
         mii = nkk + pxytime[ii]
@@ -123,7 +123,7 @@ function _pccorr(data::Array{T}, nkk::J, pxytime::Vector{J}, base::BaseParams) w
 end
 
 
-function _ccmap(data::Array{T}, n0::J, nite::J, time_map::Array{J}, base::BaseParams) where {T<:Real, J<:Integer}
+function _ccmap(data::Array{T}, n0::J, nite::J, time_map::Array{J}, base::Base) where {T<:Real, J<:Integer}
     cc_map = zeros(Float64, nite, nite)
     
     for ii in 1:nite # for x
@@ -136,7 +136,7 @@ function _ccmap(data::Array{T}, n0::J, nite::J, time_map::Array{J}, base::BasePa
 end
 
 
-function _rms(data::Array{T}, nkk::J, pxytime::Vector{J}, base::BaseParams) where J<:Integer where T<:Real
+function _rms(data::Array{T}, nkk::J, pxytime::Vector{J}, base::Base) where J<:Integer where T<:Real
 
     erg = 0.
     for ii in 1:base.nsta

@@ -12,7 +12,7 @@ using PointwiseKDEs
 
 Genera un dict vacio para llenar durante el procesado.
 """
-function _empty_dict(base::BaseParams)
+function _empty_dict(base::Base)
     dict = Dict()
     
     for ip in 1:length(base.nites)
@@ -37,9 +37,9 @@ end
 
 Genera la función que devuelve los delta times para un vector de lentidud aparente
 """
-function _dtimefunc(stax::Vector{T}, stay::Vector{T}, fsem::J) where {T<:Real, J<:Integer}
-    xref = mean(xStaUTM)
-    yref = mean(yStaUTM)
+function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J) where {T<:Real, J<:Integer}
+    xref = mean(stax)
+    yref = mean(stay)
     dtime(pxy) = floor.(Int, [pxy[1]*(stx-xref) + pxy[2]*(sty-yref) for (stx, sty) in zip(stax,stay)] .* fsem)
 
     return dtime
@@ -64,7 +64,7 @@ end
 
 Genera una lista con el número de intervalos de lentitud aparente
 """
-function _nites(pmax::Vector{T}, pinc::Vector{T}) where T<:Real
+function _nites(pmax::Array{T}, pinc::Array{T}) where T<:Real
   
   nites = [1 + 2*floor(Int64, i/j) for (i, j) in zip(pmax, pinc)]
 

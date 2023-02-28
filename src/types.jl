@@ -13,7 +13,7 @@ mutable struct Bounds{T<:Real}
 end
 
 
-struct BaseParams{T<:Real,J<:Integer}
+struct Base{J<:Integer}
   nites   :: Vector{J}              #  --> maximum slownes for the grid
   nwin    :: J                      #  --> number of time windows
   nsta    :: J                      #  --> number of stations
@@ -22,7 +22,7 @@ struct BaseParams{T<:Real,J<:Integer}
 end
 
 
-struct ArrayResponse{T<:Real}
+mutable struct ArrayResponse{T<:Real}
     freqs :: AbstractArray{T}                #  Frequencies at which the array response was evaluated (Hz)
     x     :: AbstractArray{T}                #  Cartesian x-coordinates in each station (km)
     y     :: AbstractArray{T}                #  Cartesian y-coordinates in each station (km)
