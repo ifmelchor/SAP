@@ -40,7 +40,7 @@ Genera la función que devuelve los delta times para un vector de lentidud apare
 function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J) where {T<:Real, J<:Integer}
     xref = mean(stax)
     yref = mean(stay)
-    dtime(pxy) = floor.(Int, [pxy[1]*(stx-xref) + pxy[2]*(sty-yref) for (stx, sty) in zip(stax,stay)] .* fsem)
+    dtime(pxy) = [pxy[1]*(stx-xref) + pxy[2]*(sty-yref) for (stx, sty) in zip(stax,stay)] .* fsem
 
     return dtime
 end
@@ -66,7 +66,7 @@ Genera una lista con el número de intervalos de lentitud aparente
 """
 function _nites(pmax::Array{T}, pinc::Array{T}) where T<:Real
   
-  nites = [1 + 2*floor(Int64, i/j) for (i, j) in zip(pmax, pinc)]
+  nites = [1 + 2*round(Int64, i/j) for (i, j) in zip(pmax, pinc)]
 
   return nites
 end
@@ -83,32 +83,34 @@ function r2p(pxy::Vector{T}) where T<:Real
   x = pxy[1]
   y = pxy[2]
 
-  slowness = sqrt(x^2 + y^2)
-  azimuth = 180.
+  slowness = sqrt(x*x + y*y)
   
   if y < 0
-    azimuth = 180. + 180*atan(x/y)/pi
-  
-  elseif y > 0
-    azimuth = 180*atan(x/y)/pi
-    if x < 0
-      azimuth += 360.
-    end
-  
-  else # y == 0
+    azimuth = 180+atand(x/y)
+  end
 
+  if y > 0
+    azimuth = atand(x/y)
+    
+    if x < 0
+      azimuth += 360
+    end
+  end
+  
+  if y == 0
     if x > 0
       azimuth = 90.
-    
-    elseif x < 0
-      azimuth = 270.
-    
-    else # x == 0
-      azimuth = 666.
-    
     end
-  
+    
+    if x < 0
+      azimuth = 270.
+    end
+
+    if x == 0
+      azimuth = 666.
+    end
   end
+  
   
   return (slowness, azimuth)
 end
@@ -122,36 +124,45 @@ end
 function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where T<:Real
   nite = size(msum, 1)
   bnd = Bounds(666., -1., 666., -1.)
-  q = Array{Float64}(undef, nite, nite)
+  q = Array{Bool}(undef, nite, nite)
 
-  ccth = ccmax - ccerr
+  ccmin = ccmax - ccerr
 
-  for i in 1:nite
+  for i in 1:nite, j in 1:nite
     px = pinc * (i-1) - pmax  
-    
-    for j in 1:nite 
-      py = pinc * (j-1) - pmax 
+    py = pinc * (j-1) - pmax 
       
-      ( (px == 0) && (py == 0) ) && continue # skip for
+    if (px == 0) && (py == 0)
+      continue
+    end
 
-      if msum[i,j] >= ccth
-        q[i,j] = 1
-        
-        for x in (-px+pinc, -px-pinc)
-          for y in (-py+pinc, -py-pinc)
-            s, a = r2p([x, y])
-            if ( s > bnd.slomax ) ; bnd.slomax = s end
-            if ( s < bnd.slomin ) ; bnd.slomin = s end
-            if ( a > bnd.azimax ) ; bnd.azimax = a end
-            if ( a < bnd.azimin ) ; bnd.azimin = a end
+    if msum[i,j] >= ccmin
+      q[i,j] = 1
+      
+      for x in (-px+pinc, -px-pinc)
+        for y in (-py+pinc, -py-pinc)
+          s, a = r2p([x, y])
+          
+          if s > bnd.slomax
+            bnd.slomax = s 
           end
-        end
-      
-      else
-        q[i,j] = 0
-      
-      end
 
+          if s < bnd.slomin
+            bnd.slomin = s 
+          end
+
+          if a > bnd.azimax
+            bnd.azimax = a 
+          end
+
+          if a < bnd.azimin
+            bnd.azimin = a 
+          end
+
+        end
+      end
+    else
+      q[i,j] = 0
     end
 
   end
@@ -160,25 +171,32 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
     bnd.azimin = 666.
     bnd.azimax = 1.
     
-    for i in 1:nite
+    for i in 1:nite, j in 1:nite
       px = pinc * (i-1) - pmax 
+      py = pinc * (j-1) - pmax
 
-      for j in 1:nite
-        py = pinc * (j-1) - pmax
-
-        ( (px == 0) && (py == 0) ) && continue # skip for
+      if (px == 0) && (py == 0)
+        continue
+      end
         
-        if convert(Bool, q[i,j])
-          for x in [-px+pinc, -px-pinc]
-            for y in [-py+pinc, -py-pinc]
-              s, a = r2p([x, y])
-              if ( x > 0 ) && ( a > bnd.azimax ) ; bnd.azimax = a end
-              if ( x < 0 ) && ( a < bnd.azimin ) ; bnd.azimin = a end
+      if q[i,j]
+        for x in (-px+pinc, -px-pinc)
+          for y in (-py+pinc, -py-pinc)
+
+            s, a = r2p([x, y])
+
+            if x > 0 && a > bnd.azimax
+              bnd.azimax = a
             end
+
+            if x < 0 && a < bnd.azimin
+              bnd.azimin = a
+            end
+
           end
         end
-
       end
+
     end
 
   end
@@ -186,6 +204,60 @@ function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where
   return bnd
 end
 
+
+"""
+  fb2(*args)
+    
+    Filter signal
+"""
+function _fb2(x::Array{T}, fc::T, fs::J, lowpass::Bool; amort=0.47) where {T<:Real, J<:Real}
+
+  a = tan(pi*fc/fs)
+  b = 2*a*a - 2
+  c = 1 - 2*amort*a + a*a
+  d = 1 + 2*amort*a + a*a
+
+  if lowpass
+    a0 = a*a/d
+    a1 = 2*a0
+  else
+    a0 = 1/d
+    a1 = -2*a0
+  end
+  
+  a2 = a0
+  b1 = -b/d
+  b2 = -c/d   
+  
+  ndata = size(x, 1)
+  y = Array{T}(undef, ndata)
+  y[1] = x[1]
+  y[2] = x[2]
+
+  for j in 3:ndata
+    y[j] = a0*x[j] + a1*x[j-1] + a2*x[j-2] + b1*y[j-1] + b2*y[j-2]
+  end
+
+  return y
+end
+
+
+function _filter!(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:Real}
+
+  fl, fh = fq_band
+
+  nsta = size(data,1)
+
+  for i in 1:nsta
+    temp = _fb2(data[i,:], fh, fs, true)
+    data[i,:] = _fb2(temp, fl, fs, false)
+    temp = reverse(data[i,:])
+    data[i,:] = _fb2(temp, fh, fs, true)
+    temp = _fb2(data[i,:], fl, fs, false)
+    data[i,:] = reverse(temp)
+  end
+
+end
 
 """
   spb(args)
