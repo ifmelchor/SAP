@@ -256,7 +256,14 @@ function _filter!(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:
     temp = _fb2(data[i,:], fl, fs, false)
     data[i,:] = reverse(temp)
   end
+end
 
+
+function _filter(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:Real}
+    U = deepcopy(data)
+    _filter!(U, fs, fq_band)
+
+    return U
 end
 
 """
