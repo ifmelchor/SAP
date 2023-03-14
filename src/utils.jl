@@ -83,7 +83,7 @@ function r2p(pxy::Vector{T}) where T<:Real
   x = pxy[1]
   y = pxy[2]
 
-  slowness = sqrt(x*x + y*y)
+  slowness = hypot(x, y)
   
   if y < 0
     azimuth = 180+atand(x/y)
