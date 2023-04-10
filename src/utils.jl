@@ -48,7 +48,7 @@ end
 
 function _cciter(nsta::J) where J<:Integer
   
-  cciter = Vector{Tuple{Int,Int}}()
+  cciter = Vector{Tuple{J,J}}()
   for ii in 1:nsta-1
       for jj in ii+1:nsta
           push!(cciter, (ii, jj))

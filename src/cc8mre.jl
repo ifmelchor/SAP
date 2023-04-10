@@ -20,7 +20,7 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, pmax::Array{T
     dict = _empty_dict(base)
 
     # init pxy
-    pxy0::Vector{Float64} = [0.,0.]
+    pxy0::Vector{T} = [0.,0.]
 
     # filter data
     _filter!(data, fsem, fqband)
@@ -34,8 +34,8 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, pmax::Array{T
         time_map = _dtimemap(dtime, pxy_map, nsta)
         
         # init params
-        best_maac::Float64 = -1.
-        best_pxy::Vector{Float64} = [0., 0.]
+        best_maac = -1.
+        best_pxy::Vector{T} = [0., 0.]
 
         # iterate over time
         for nk in 1:nwin
@@ -79,7 +79,7 @@ end
 
 
 function _pxymap(pxy0::Vector{T}, nite::J, pinc::T, pmax::T) where {T<:Real, J<:Integer}
-    pxy_map = Array{Float64}(undef, nite, nite, 2)
+    pxy_map = Array{T}(undef, nite, nite, 2)
     
     for ii in 1:nite, jj in 1:nite
         px = pxy0[1] - pmax + pinc*(ii-1)
@@ -107,12 +107,12 @@ end
 
 
 function _pccorr(data::Array{T}, nkk::T, pxytime::Vector{T}, base::Base) where T<:Real
-    cc = zeros(Float64, base.nsta, base.nsta)
+    cc = zeros(T, base.nsta, base.nsta)
     for ii in 1:base.nsta
-        mii = round(Int64, nkk + pxytime[ii])
+        mii = round(Int32, nkk + pxytime[ii])
         dii = @view data[ii, mii:base.lwin+mii]
         for jj in ii:base.nsta
-            mjj = round(Int64, nkk + pxytime[jj])
+            mjj = round(Int32, nkk + pxytime[jj])
             djj = @view data[jj, mjj:base.lwin+mjj]
             cc[ii,jj] += dot(dii,djj)
         end
@@ -124,7 +124,7 @@ end
 
 
 function _ccmap(data::Array{T}, n0::T, nite::J, time_map::Array{T}, base::Base) where {T<:Real, J<:Integer}
-    cc_map = zeros(Float64, nite, nite)
+    cc_map = zeros(T, nite, nite)
     
     for ii in 1:nite, jj in 1:nite
         cc_map[ii,jj] = _pccorr(data, n0, time_map[ii,jj,:], base)
@@ -138,7 +138,7 @@ function _rms(data::Array{T}, nkk::T, pxytime::Vector{T}, base::Base) where T<:R
 
     erg = 0.
     for ii in 1:base.nsta
-        mii = round(Int64, nkk + pxytime[ii])
+        mii = round(Int32, nkk + pxytime[ii])
         dii = @view data[ii, 1+mii:base.lwin+mii]
         erg += sqrt(mean(dii.^2))
     end
