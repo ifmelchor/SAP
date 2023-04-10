@@ -106,7 +106,7 @@ function _dtimemap(dtime_func::Function, pxy_map::Array{T}, nsta::J) where {T<:R
 end
 
 
-function _pccorr(data::Array{T}, nkk::T, pxytime::Vector{T}, base::Base) where {T<:Real, J<:Integer}
+function _pccorr(data::Array{T}, nkk::T, pxytime::Vector{T}, base::Base) where T<:Real
     cc = zeros(Float64, base.nsta, base.nsta)
     for ii in 1:base.nsta
         mii = round(Int64, nkk + pxytime[ii])
