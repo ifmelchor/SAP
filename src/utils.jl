@@ -266,13 +266,13 @@ function _filter(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:R
     return U
 end
 
+
 """
   spb(args)
     
     Compute the maac probability map
     
 """
-
 function mpm(slowmap::Array{T,3})  where T<:Real
   
   nite = size(slowmap, 2)
