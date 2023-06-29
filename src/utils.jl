@@ -73,6 +73,49 @@ end
 
 
 """
+   get_dtimes(*args)
+
+Devuelve los delta times correspondientes a un slowness y un azimuth
+"""
+function get_dtimes(slowness::T, bazimuth::T, pmax::T, pinc::T, stax::Array{T}, stay::Array{T}, etol::T) where T<:Real
+
+  nsta = length(stax)
+
+  # create nites
+  nite = 1 + 2*round(Int64, pmax/pinc)
+
+  # create slowness grid
+  pxy_map  = _pxymap([0.,0.], nite, pinc, pmax)
+  dtime = _dtimefunc(stax, stay, 1)
+  time_map = _dtimemap(dtime, pxy_map, nsta)
+
+  ijmin = [1, 1]
+  tol    = [999., 999.]
+  
+  for ii in 1:nite, jj in 1:nite
+    pxy = pxy_map[ii,jj,:]
+    slow, baz = r2p(-1 .* pxy)
+    slodif = abs(slow-slowness)
+    bazdif = abs(baz-bazimuth)
+
+    if slodif < etol && bazdif < etol
+      tol[1] = slodif
+      tol[2] = bazdif
+      ijmin = [ii, jj]
+
+      break
+    end
+
+  end
+
+  ii, jj = ijmin
+  deltas = time_map[ii, jj, :]
+
+  return deltas, tol
+  
+end
+
+"""
   r2p(x, y)
     
     Get slowness and back-azimuth angles
