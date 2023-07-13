@@ -5,7 +5,7 @@
 
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
-using PointwiseKDEs
+# using PointwiseKDEs
 
 """
    _empty_dict(*args)
@@ -14,21 +14,12 @@ Genera un dict vacio para llenar durante el procesado.
 """
 function _empty_dict(base::Base)
     dict = Dict()
-    
-    for ip in 1:length(base.nites)
-        dict[ip] = Dict()
-        nite = base.nites[ip]
-
-        for attr in ("slow", "maac", "bazm", "rms")
-            dict[ip][attr] = Array{Float64}(undef, base.nwin)
-        end
-
-        dict[ip]["slowmap"] = Array{Float64}(undef, base.nwin, nite, nite)
-        dict[ip]["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
-        dict[ip]["bazmbnd"] = Array{Float64}(undef, base.nwin, 2)
+    for attr in ("slow", "maac", "bazm", "rms")
+        dict[attr] = Array{Float64}(undef, base.nwin)
     end
-
-
+    dict["slowmap"] = Array{Float64}(undef, base.nwin, base.nite, base.nite)
+    dict["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
+    dict["bazmbnd"] = Array{Float64}(undef, base.nwin, 2)
     return dict
 end
 
@@ -58,62 +49,6 @@ function _cciter(nsta::J) where J<:Integer
   return cciter
 end
 
-
-"""
-   _nites(*args)
-
-Genera una lista con el número de intervalos de lentitud aparente
-"""
-function _nites(pmax::Array{T}, pinc::Array{T}) where T<:Real
-  
-  nites = [1 + 2*round(Int64, i/j) for (i, j) in zip(pmax, pinc)]
-
-  return nites
-end
-
-
-"""
-   get_dtimes(*args)
-
-Devuelve los delta times correspondientes a un slowness y un azimuth
-"""
-function get_dtimes(slowness::T, bazimuth::T, pmax::T, pinc::T, stax::Array{T}, stay::Array{T}, etol::T) where T<:Real
-
-  nsta = length(stax)
-
-  # create nites
-  nite = 1 + 2*round(Int64, pmax/pinc)
-
-  # create slowness grid
-  pxy_map  = _pxymap([0.,0.], nite, pinc, pmax)
-  dtime = _dtimefunc(stax, stay, 1)
-  time_map = _dtimemap(dtime, pxy_map, nsta)
-
-  ijmin = [1, 1]
-  tol    = [999., 999.]
-  
-  for ii in 1:nite, jj in 1:nite
-    pxy = pxy_map[ii,jj,:]
-    slow, baz = r2p(-1 .* pxy)
-    slodif = abs(slow-slowness)
-    bazdif = abs(baz-bazimuth)
-
-    if slodif < etol && bazdif < etol
-      tol[1] = slodif
-      tol[2] = bazdif
-      ijmin = [ii, jj]
-
-      break
-    end
-
-  end
-
-  ii, jj = ijmin
-  deltas = time_map[ii, jj, :]
-
-  return deltas, tol
-  
-end
 
 """
   r2p(x, y)
@@ -310,64 +245,64 @@ function _filter(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:R
 end
 
 
-"""
-  spb(args)
+# """
+#   spb(args)
     
-    Compute the maac probability map
+#     Compute the maac probability map
     
-"""
-function mpm(slowmap::Array{T,3})  where T<:Real
+# """
+# function mpm(slowmap::Array{T,3})  where T<:Real
   
-  nite = size(slowmap, 2)
-  spbmap = Array{T}(undef, nite, nite)
+#   nite = size(slowmap, 2)
+#   spbmap = Array{T}(undef, nite, nite)
 
-  for ii in 1:nite
-    for jj in 1:nite
-      data = reshape(slowmap[:,ii,jj], (1, :))
-      data = convert(Array{Float64}, data)
-      data_min = findmin(data)[1]
-      data_max = findmax(data)[1]
-      x_space = LinRange(data_min, data_max, 100)
-      kde = PointwiseKDE(data)
-      y_space = rand(kde, 100)
-      cc_ij = x_space[findmax(y_space)[2][2]]
-      spbmap[ii,jj] = cc_ij
-    end
-  end
+#   for ii in 1:nite
+#     for jj in 1:nite
+#       data = reshape(slowmap[:,ii,jj], (1, :))
+#       data = convert(Array{Float64}, data)
+#       data_min = findmin(data)[1]
+#       data_max = findmax(data)[1]
+#       x_space = LinRange(data_min, data_max, 100)
+#       kde = PointwiseKDE(data)
+#       y_space = rand(kde, 100)
+#       cc_ij = x_space[findmax(y_space)[2][2]]
+#       spbmap[ii,jj] = cc_ij
+#     end
+#   end
     
-  return spbmap
-end
+#   return spbmap
+# end
 
 
-"""
-  spb(args)
+# """
+#   spb(args)
     
-    Compute the slowmness and back_azimuth time map
+#     Compute the slowmness and back_azimuth time map
     
-"""
+# """
 
-function slobaztmap(slowmap::Array{T,3}, pinc::J, pmax::J, cc_th::J)  where {T<:Real, J<:Real}
+# function slobaztmap(slowmap::Array{T,3}, pinc::J, pmax::J, cc_th::J)  where {T<:Real, J<:Real}
 
-  nwin = size(slowmap, 1)
-  nite = size(slowmap, 2)
+#   nwin = size(slowmap, 1)
+#   nite = size(slowmap, 2)
 
-  pxymap = _pxymap([0.,0.], nite, pinc, pmax)
-  sbtm = Array{Vector{Tuple{T,T}}}(undef, nwin)
+#   pxymap = _pxymap([0.,0.], nite, pinc, pmax)
+#   sbtm = Array{Vector{Tuple{T,T}}}(undef, nwin)
 
-  for t in 1:nwin
-    data = slowmap[t,:,:]
+#   for t in 1:nwin
+#     data = slowmap[t,:,:]
 
-    sbtm_t = Vector{Tuple{T,T}}()
-    for ii in 1:nite
-      for jj in 1:nite
-        if data[ii,jj] > cc_th
-          push!(sbtm_t, r2p(-1 .* pxymap[ii,jj,:]))
-        end
-      end
-    end
+#     sbtm_t = Vector{Tuple{T,T}}()
+#     for ii in 1:nite
+#       for jj in 1:nite
+#         if data[ii,jj] > cc_th
+#           push!(sbtm_t, r2p(-1 .* pxymap[ii,jj,:]))
+#         end
+#       end
+#     end
 
-    sbtm[t] = sbtm_t
-  end
+#     sbtm[t] = sbtm_t
+#   end
 
-  return sbtm
-end
+#   return sbtm
+# end
