@@ -14,7 +14,7 @@ end
 
 
 struct Base{J<:Integer}
-  nites   :: Vector{J}              #  --> maximum slownes for the grid
+  nite    :: J              #  --> maximum slownes for the grid
   nwin    :: J                      #  --> number of time windows
   nsta    :: J                      #  --> number of stations
   lwin    :: J                      #  --> time window length

@@ -32,7 +32,6 @@ function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J) where {T<:Real, J<:
     xref = mean(stax)
     yref = mean(stay)
     dtime(pxy) = [pxy[1]*(stx-xref) + pxy[2]*(sty-yref) for (stx, sty) in zip(stax,stay)] .* fsem
-
     return dtime
 end
 
