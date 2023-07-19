@@ -4,7 +4,9 @@
 # GNU GPL v2 licenced to I. Melchor and J. Almendros 08/2022
 
 
-function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, sloint::T, fqband::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T, toff::J; slow0::Vector{T}=[0.,0.]) where {T<:Real, J<:Integer}
+function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
+    sloint::T, fqband::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T,
+    toff::J, slow0::Vector{T}) where {T<:Real, J<:Integer}
     
     # filter data
     _filter!(data, fsem, fqband)
@@ -37,8 +39,8 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, sl
         ccmax      = findmax(ccmap)
         maac       = ccmax[1]
         (ii, jj)   = ccmax[2].I
-        best_pxy_n = pxy_map[ii, jj, :]
-        slow, bazm = r2p(-1 .* best_pxy_n)
+        best_slow  = slow_grid[ii, jj, :]
+        slow, bazm = r2p(-1 .* best_slow)
         rms        = _rms(data, n0, time_grid[ii, jj, :], base)
         bounds     = bm2(ccmap, slomax, sloint, maac, ccerr)
 
@@ -62,7 +64,8 @@ end
 
 Devuelve los delta times correspondientes a un slowness y un azimuth
 """
-function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, xStaUTM::Array{T}, yStaUTM::Array{T}, etol::T; slow0::Vector{T}=[0.,0.]) where T<:Real
+function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, fsem::J, xStaUTM::Array{T},
+    yStaUTM::Array{T}, etol::T; slow0::Vector{T}=[0.,0.], return_xy::Bool=false) where {T<:Real, J<:Integer}
 
     # nro stations
     nsta   = length(xStaUTM)
@@ -76,14 +79,13 @@ function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, xStaUTM::Array{T}, yS
     time_grid  = _dtimemap(dtime, slow_grid, nsta)
 
     ijmin = [1, 1]
-    tol    = [999., 999.]
+    tol   = [999., 999.]
   
     for ii in 1:nite, jj in 1:nite
         pxy = slow_grid[ii,jj,:]
-        slow, baz = r2p(-1 .* pxy)
-        slodif = abs(slow-slowness)
-        bazdif = abs(baz-bazimuth)
-
+        s, b = r2p(-1 .* pxy)
+        slodif = abs(s-slow)
+        bazdif = abs(b-baz)
         if slodif < etol && bazdif < etol
             tol[1] = slodif
             tol[2] = bazdif
@@ -93,10 +95,13 @@ function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, xStaUTM::Array{T}, yS
     end
 
     ii, jj = ijmin
-    deltas = time_grid[ii, jj, :]
 
-    return deltas, tol
-  
+    if return_xy
+        return slow_grid[ii, jj, :], tol
+    else
+        return time_grid[ii, jj, :], tol
+    end
+
 end
 
 
@@ -161,7 +166,7 @@ end
 function _ccmap(data::Array{T}, n0::T, time_map::Array{T}, base::Base) where {T<:Real, J<:Integer}
     cc_map = zeros(T, base.nite, base.nite)
     
-    for ii in 1:nite, jj in 1:nite
+    for ii in 1:base.nite, jj in 1:base.nite
         cc_map[ii,jj] = _pccorr(data, n0, time_map[ii,jj,:], base)
     end
     
