@@ -14,12 +14,12 @@ Genera un dict vacio para llenar durante el procesado.
 """
 function _empty_dict(base::Base)
     dict = Dict()
-    for attr in ("slow", "maac", "bazm", "rms")
+    for attr in ("slow", "maac", "baz", "rms")
         dict[attr] = Array{Float64}(undef, base.nwin)
     end
     dict["slowmap"] = Array{Float64}(undef, base.nwin, base.nite, base.nite)
     dict["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
-    dict["bazmbnd"] = Array{Float64}(undef, base.nwin, 2)
+    dict["bazbnd"] = Array{Float64}(undef, base.nwin, 2)
     return dict
 end
 

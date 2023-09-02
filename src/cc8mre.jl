@@ -47,11 +47,11 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
         # save values into dict
         dict["maac"][nk] = maac 
         dict["slow"][nk] = slow
-        dict["bazm"][nk] = bazm
+        dict["baz"][nk] = bazm
         dict["rms"][nk]  = rms
         dict["slowmap"][nk,:,:] = ccmap
         dict["slowbnd"][nk,:] = [bounds.slomin, bounds.slomax]
-        dict["bazmbnd"][nk,:] = [bounds.azimin, bounds.azimax]
+        dict["bazbnd"][nk,:] = [bounds.azimin, bounds.azimax]
     
     end
 
