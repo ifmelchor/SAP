@@ -43,12 +43,14 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
         slow, bazm = r2p(-1 .* best_slow)
         rms        = _rms(data, n0, time_grid[ii, jj, :], base)
         bounds     = bm2(ccmap, slomax, sloint, maac, ccerr)
+        error      = _slowerror(ccmap, maac, (ii, jj), ccerr)
 
         # save values into dict
         dict["maac"][nk] = maac 
         dict["slow"][nk] = slow
-        dict["baz"][nk] = bazm
+        dict["baz"][nk]  = bazm
         dict["rms"][nk]  = rms
+        dict["error"][nk]  = error
         dict["slowmap"][nk,:,:] = ccmap
         dict["slowbnd"][nk,:] = [bounds.slomin, bounds.slomax]
         dict["bazbnd"][nk,:] = [bounds.azimin, bounds.azimax]

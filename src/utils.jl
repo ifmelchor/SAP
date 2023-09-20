@@ -14,7 +14,7 @@ Genera un dict vacio para llenar durante el procesado.
 """
 function _empty_dict(base::Base)
     dict = Dict()
-    for attr in ("slow", "maac", "baz", "rms")
+    for attr in ("slow", "maac", "baz", "rms", "error")
         dict[attr] = Array{Float64}(undef, base.nwin)
     end
     dict["slowmap"] = Array{Float64}(undef, base.nwin, base.nite, base.nite)
@@ -91,6 +91,48 @@ function r2p(pxy::Vector{T}) where T<:Real
   
   return (slowness, azimuth)
 end
+
+
+
+"""
+  _slowerror(*args)
+    
+    Get slowness error
+    
+"""
+function _slowerror(msum::AbstractArray{T}, maac::T, maacxy::Tuple{J,J}, ccerr::T) where {T<:Real, J<:Integer}
+
+  # count the size of the maac
+  nite = size(msum, 1)
+
+  # define the limit
+  cclim = maac * (1-ccerr)
+
+  # find the bounds in x,y 
+  mx, my = maacxy
+  lx_p = mx + findmin(abs.(msum[mx:end,my] .- cclim))[2] - 1
+  lx_n = findmin(abs.(msum[1:mx,my] .- cclim))[2]
+  ly_p = my + findmin(abs.(msum[mx,my:end] .- cclim))[2] - 1
+  ly_n = findmin(abs.(msum[mx,1:my] .- cclim))[2]
+
+  # define the cropped matrix between bounds
+  mlim = msum[lx_n:lx_p,ly_n:ly_p]
+
+  # count how many nodes fullfill the contidition
+  n = 0
+  for x in 1:size(mlim, 1), y in 1:size(mlim, 2)
+      if mlim[x, y] >= cclim
+          n += 1
+      end
+  end
+
+  # get the fraction of the nodes as the error 
+  return n / (nite*nite)
+
+
+end
+
+
 
 """
   bm2(*args)
