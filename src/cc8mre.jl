@@ -67,7 +67,7 @@ end
 Devuelve los delta times correspondientes a un slowness y un azimuth
 """
 function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, fsem::J, xStaUTM::Array{T},
-    yStaUTM::Array{T}, etol::T; slow0::Vector{T}=[0.,0.], return_xy::Bool=false) where {T<:Real, J<:Integer}
+    yStaUTM::Array{T}, slow0::Vector{T}=[0.,0.], return_xy::Bool=false) where {T<:Real, J<:Integer}
 
     # nro stations
     nsta   = length(xStaUTM)
@@ -81,18 +81,20 @@ function get_dtimes(slow::T, baz::T, slomax::T, sloint::T, fsem::J, xStaUTM::Arr
     time_grid  = _dtimemap(dtime, slow_grid, nsta)
 
     ijmin = [1, 1]
-    tol   = [999., 999.]
-  
+    tol0  = 1.0e54
+    tol   = [99., 99.]
+    
     for ii in 1:nite, jj in 1:nite
         pxy = slow_grid[ii,jj,:]
         s, b = r2p(-1 .* pxy)
         slodif = abs(s-slow)
         bazdif = abs(b-baz)
-        if slodif < etol && bazdif < etol
+        tolii = slodif + bazdif
+        if tolii < tol0
+            tol0 = tolii
             tol[1] = slodif
             tol[2] = bazdif
             ijmin = [ii, jj]
-            break
         end
     end
 
