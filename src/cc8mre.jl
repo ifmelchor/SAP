@@ -34,16 +34,22 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
 
         # get ccmap
         ccmap = _ccmap(data, n0, time_grid, base)
-            
-        # find max value
+
+        # find max value MAAC and position
         ccmax      = findmax(ccmap)
         maac       = ccmax[1]
         (ii, jj)   = ccmax[2].I
+        
+        # get slow, baz, and rms
         best_slow  = slow_grid[ii, jj, :]
         slow, bazm = r2p(-1 .* best_slow)
         rms        = _rms(data, n0, time_grid[ii, jj, :], base)
-        bounds     = bm2(ccmap, slomax, sloint, maac, ccerr)
-        error      = _slowerror(ccmap, maac, (ii, jj), ccerr)
+        
+        # take bounds of baz and slow
+        bounds     = bm2(ccmap, slomax, sloint, maac, 0.05)
+        
+        # take error
+        error      = _slowerrorcoef(ccmap, maac*ccerr)
 
         # save values into dict
         dict["maac"][nk] = maac 
@@ -167,7 +173,7 @@ function _pccorr(data::Array{T}, nkk::T, pxytime::Vector{T}, base::Base) where T
 end
 
 
-function _ccmap(data::Array{T}, n0::T, time_map::Array{T}, base::Base) where {T<:Real, J<:Integer}
+function _ccmap(data::Array{T}, n0::T, time_map::Array{T}, base::Base) where T<:Real
     cc_map = zeros(T, base.nite, base.nite)
     
     for ii in 1:base.nite, jj in 1:base.nite

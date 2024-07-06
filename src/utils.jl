@@ -35,6 +35,13 @@ function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J) where {T<:Real, J<:
     return dtime
 end
 
+# function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J, epi::T) where {T<:Real, J<:Integer}
+#     xref = mean(stax)
+#     yref = mean(stay)
+#     dtime(pxy) = [ sqrt((hypot(pxy[1], pxy[2])*stx-pxy[1]*epi)**2 + (hypot(pxy[1], pxy[2])*sty-pxy[2]*epi)**2) - sqrt((hypot(pxy[1], pxy[2])*xref-pxy[1]*epi)**2 + (hypot(pxy[1], pxy[2])*yref-pxy[2]*epi)**2) for (stx, sty) in zip(stax,stay) ] .* fsem
+#     return dtime
+# end
+
 
 function _cciter(nsta::J) where J<:Integer
   
@@ -95,42 +102,47 @@ end
 
 
 """
-  _slowerror(*args)
+  _slowerrorcoef(*args)
     
-    Get slowness error
+    Get slowness error coefficient
     
 """
-function _slowerror(msum::AbstractArray{T}, maac::T, maacxy::Tuple{J,J}, ccerr::T) where {T<:Real, J<:Integer}
+function _slowerrorcoef(cmap::AbstractArray{T}, cclim::T) where T<:Real
 
-  # count the size of the maac
-  nite = size(msum, 1)
+  data = reshape(cmap,1,:)
+  ndat = size(data,2)
+  npts = length(findall(>(cclim), b))
 
-  # define the limit
-  cclim = maac * (1-ccerr)
+  return npts/ndat
+end
 
-  # find the bounds in x,y 
-  mx, my = maacxy
-  lx_p = mx + findmin(abs.(msum[mx:end,my] .- cclim))[2] - 1
-  lx_n = findmin(abs.(msum[1:mx,my] .- cclim))[2]
-  ly_p = my + findmin(abs.(msum[mx,my:end] .- cclim))[2] - 1
-  ly_n = findmin(abs.(msum[mx,1:my] .- cclim))[2]
 
-  # define the cropped matrix between bounds
-  mlim = msum[lx_n:lx_p,ly_n:ly_p]
+  # # count the size of the maac
+  # nite = size(msum, 1)
 
-  # count how many nodes fullfill the contidition
-  n = 0
-  for x in 1:size(mlim, 1), y in 1:size(mlim, 2)
-      if mlim[x, y] >= cclim
-          n += 1
-      end
-  end
+  # # define the limit
+  # cclim = maac*ccerr
+
+  # # find the bounds in x,y 
+  # mx, my = maacxy
+  # lx_p = mx + findmin(abs.(msum[mx:end,my] .- cclim))[2] - 1
+  # lx_n = findmin(abs.(msum[1:mx,my] .- cclim))[2]
+  # ly_p = my + findmin(abs.(msum[mx,my:end] .- cclim))[2] - 1
+  # ly_n = findmin(abs.(msum[mx,1:my] .- cclim))[2]
+
+  # # define the cropped matrix between bounds
+  # mlim = msum[lx_n:lx_p,ly_n:ly_p]
+
+  # # count how many nodes fullfill the contidition
+  # n = 0
+  # for x in 1:size(mlim, 1), y in 1:size(mlim, 2)
+  #     if mlim[x, y] >= cclim
+  #         n += 1
+  #     end
+  # end
 
   # get the fraction of the nodes as the error 
-  return n / (nite*nite)
-
-
-end
+  # return n / (nite*nite)
 
 
 
@@ -262,11 +274,10 @@ end
 
 
 function _filter!(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:Real}
-
+  
   fl, fh = fq_band
-
   nsta = size(data,1)
-
+  
   for i in 1:nsta
     temp = _fb2(data[i,:], fh, fs, true)
     data[i,:] = _fb2(temp, fl, fs, false)
@@ -275,10 +286,12 @@ function _filter!(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:
     temp = _fb2(data[i,:], fl, fs, false)
     data[i,:] = reverse(temp)
   end
+
 end
 
 
 function _filter(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:Real}
+    
     U = deepcopy(data)
     _filter!(U, fs, fq_band)
 
@@ -286,12 +299,23 @@ function _filter(data::Array{T}, fs::J, fq_band::Vector{T}) where {T<:Real, J<:R
 end
 
 
-# """
-#   spb(args)
+"""
+  spb(args)
     
-#     Compute the maac probability map
+    Compute the mpaac
     
-# """
+"""
+# function pmmac(cmap::Array{T,3}) where T<:Real
+  
+#   pdfx = LinRange(0, 1, 100)
+#   data = reshape(cmap, 1, :)
+#   kde  = PointwiseKDE(data)
+#   pdfy = rand(kde, 100)
+#   mpaac = pdfx[findmax(pdfy)[2][2]]
+  
+#   return mpaac
+# end
+
 # function mpm(slowmap::Array{T,3})  where T<:Real
   
 #   nite = size(slowmap, 2)
