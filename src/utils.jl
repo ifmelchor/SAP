@@ -111,7 +111,7 @@ function _slowerrorcoef(cmap::AbstractArray{T}, cclim::T) where T<:Real
 
   data = reshape(cmap,1,:)
   ndat = size(data,2)
-  npts = length(findall(>(cclim), b))
+  npts = length(findall(>(cclim), data))
 
   return npts/ndat
 end
