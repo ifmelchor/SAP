@@ -47,7 +47,7 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
         
         # take bounds of baz and slow
         # bounds = bm2(ccmap, slomax, sloint, maac, 0.05)
-        bounds = _bounds(ccmap, slow_grid, maac*0.9)
+        bounds = _bounds(ccmap, slow_grid, maac*0.95)
 
         # take error
         ccmap2 = reshape(ccmap,1,:)
