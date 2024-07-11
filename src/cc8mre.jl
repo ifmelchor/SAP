@@ -50,9 +50,8 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
         bounds = _bounds(ccmap, slow_grid, maac*0.95)
 
         # take error
-        ccmap2 = reshape(ccmap,1,:)
-        npts  = length(findall(>(maac*ccerr), ccmap2))
-        error = npts/size(ccmap2,2)
+        npts  = sum(reshape(ccmap,1,:) .> maac*ccerr)
+        error = 100*npts/(nite*nite) # percent
 
         # save values into dict
         dict["maac"][nk] = maac 
