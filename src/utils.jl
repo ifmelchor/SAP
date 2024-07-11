@@ -100,49 +100,68 @@ function r2p(pxy::Vector{T}) where T<:Real
 end
 
 
+function _ijbound(arr::AbstractArray{T}, cclim::T) where T<:Real
+  
+  pos = findmax(arr)[2]
 
-"""
-  _slowerrorcoef(*args)
-    
-    Get slowness error coefficient
-    
-"""
-function _slowerrorcoef(cmap::AbstractArray{T}, cclim::T) where T<:Real
+  if pos == 1 || pos == size(arr, 1)
+    return false, nothing
+  end
+  
+  i = findmin(abs.( arr[1:pos-1] .- cclim ))[2]
+  j = findmin(abs.( arr[pos+1:end] .- cclim ))[2]
 
-  data = reshape(cmap,1,:)
-  ndat = size(data,2)
-  npts = length(findall(>(cclim), data))
-
-  return npts/ndat
+  return true, (i,j)
 end
 
+"""
+  _bounds(*args)
+    
+    Get slowness and back-azimuth bounds
+    Ivan's way
+    
+"""
+function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, ccerr::T) where T<:Real
 
-  # # count the size of the maac
-  # nite = size(msum, 1)
+  # get maac position
+  ccmax = findmax(slomap)
+  (i0, j0) = ccmax[2].I
+  
+  cclim = (1-ccerr)*ccmax[1]
+  iarr  = slomap[i0,:]
+  jarr  = slomap[:,j0]
 
-  # # define the limit
-  # cclim = maac*ccerr
+  check1, pnts1 = _ijbound(iarr, cclim)
+  check2, pnts2 = _ijbound(jarr, cclim)
 
-  # # find the bounds in x,y 
-  # mx, my = maacxy
-  # lx_p = mx + findmin(abs.(msum[mx:end,my] .- cclim))[2] - 1
-  # lx_n = findmin(abs.(msum[1:mx,my] .- cclim))[2]
-  # ly_p = my + findmin(abs.(msum[mx,my:end] .- cclim))[2] - 1
-  # ly_n = findmin(abs.(msum[mx,1:my] .- cclim))[2]
+  if check1 && check2
+    i1, i2 = pnts1
+    j1, j2 = pnts2
 
-  # # define the cropped matrix between bounds
-  # mlim = msum[lx_n:lx_p,ly_n:ly_p]
+    p1 = slogrd[i1, j1, :]
+    p2 = slogrd[i1, j2, :]
+    p3 = slogrd[i2, j1, :]
+    p4 = slogrd[i2, j2, :]
 
-  # # count how many nodes fullfill the contidition
-  # n = 0
-  # for x in 1:size(mlim, 1), y in 1:size(mlim, 2)
-  #     if mlim[x, y] >= cclim
-  #         n += 1
-  #     end
-  # end
+    slo1, baz1 = r2p(-1 .* p1)
+    slo2, baz2 = r2p(-1 .* p2)
+    slo3, baz3 = r2p(-1 .* p3)
+    slo4, baz4 = r2p(-1 .* p4)
 
-  # get the fraction of the nodes as the error 
-  # return n / (nite*nite)
+    bazmin = min(baz1,baz2,baz3,baz4)
+    bazmax = max(baz1,baz2,baz3,baz4)
+    slomin = min(slo1,slo2,slo3,slo4)
+    slomax = max(slo1,slo2,slo3,slo4)
+
+    bnd = Bounds(bazmin, bazmax, slomin, slomax)
+
+  else
+    bnd = Bounds(666., -666., 666., -666.)
+
+  end
+
+  return bnd
+end
 
 
 
@@ -150,6 +169,7 @@ end
   bm2(*args)
     
     Get slowness and back-azimuth bounds
+    Javi's way
     
 """
 function bm2(msum::AbstractArray{T}, pmax::T, pinc::T, ccmax::T, ccerr::T) where T<:Real
