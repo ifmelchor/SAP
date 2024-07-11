@@ -8,9 +8,6 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
     sloint::T, fqband::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, ccerr::T,
     toff::J, slow0::Vector{T}) where {T<:Real, J<:Integer}
     
-    # filter data
-    _filter!(data, fsem, fqband)
-
     # define base params
     nsta   = length(xStaUTM) # nro of stations
     cciter = _cciter(nsta)   # stations iterator
@@ -27,6 +24,9 @@ function CC8(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T,
     # create deltatimes grid
     dtime     = _dtimefunc(xStaUTM, yStaUTM, fsem) # define delta time function
     time_grid = _dtimemap(dtime, slow_grid, nsta)
+
+    # filter data
+    _filter!(data, fsem, fqband)
     
     # iterate over time
     for nk in 1:nwin
