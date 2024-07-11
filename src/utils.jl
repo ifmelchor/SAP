@@ -118,16 +118,15 @@ end
   _bounds(*args)
     
     Get slowness and back-azimuth bounds
+    by drawing a circle over the maac
     Ivan's way
     
 """
-function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, ccerr::T) where T<:Real
+function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, cclim::T) where T<:Real
 
   # get maac position
   ccmax = findmax(slomap)
   (i0, j0) = ccmax[2].I
-  
-  cclim = (1-ccerr)*ccmax[1]
   iarr  = slomap[i0,:]
   jarr  = slomap[:,j0]
 
@@ -138,15 +137,17 @@ function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, ccerr::T) w
     i1, i2 = pnts1
     j1, j2 = pnts2
 
-    p1 = slogrd[i1, j1, :]
-    p2 = slogrd[i1, j2, :]
-    p3 = slogrd[i2, j1, :]
-    p4 = slogrd[i2, j2, :]
+    p1 = slogrd[i1, j0, :]
+    p2 = slogrd[i2, j0, :]
+    p3 = slogrd[i0, j1, :]
+    p4 = slogrd[i0, j2, :]
 
     slo1, baz1 = r2p(-1 .* p1)
     slo2, baz2 = r2p(-1 .* p2)
     slo3, baz3 = r2p(-1 .* p3)
     slo4, baz4 = r2p(-1 .* p4)
+
+    # println(baz1," ",baz2," ",baz3," ",baz4)
 
     bazmin = min(baz1,baz2,baz3,baz4)
     bazmax = max(baz1,baz2,baz3,baz4)
