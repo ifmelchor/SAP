@@ -134,8 +134,8 @@ function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, cclim::T) w
   check2, pnts2 = _ijbound(jarr, cclim)
 
   if check1 && check2
-    i1, i2 = pnts1
-    j1, j2 = pnts2
+    j1, j2 = pnts1
+    i1, i2 = pnts2
 
     p1 = slogrd[i1, j0, :]
     p2 = slogrd[i2, j0, :]
