@@ -111,7 +111,7 @@ function _ijbound(arr::AbstractArray{T}, cclim::T) where T<:Real
   i = findmin(abs.( arr[1:pos-1] .- cclim ))[2]
   j = findmin(abs.( arr[pos+1:end] .- cclim ))[2]
 
-  return true, (i,j)
+  return true, (i,pos+j)
 end
 
 """
