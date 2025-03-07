@@ -14,7 +14,7 @@ Genera un dict vacio para llenar durante el procesado.
 """
 function _empty_dict(base::Base)
     dict = Dict()
-    for attr in ("slow", "maac", "baz", "rms", "error")
+    for attr in ("slow", "baz", "maac", "rms", "error")
         dict[attr] = Array{Float64}(undef, base.nwin)
     end
     dict["slowmap"] = Array{Float64}(undef, base.nwin, base.nite, base.nite)
@@ -22,6 +22,47 @@ function _empty_dict(base::Base)
     dict["bazbnd"] = Array{Float64}(undef, base.nwin, 2)
     return dict
 end
+
+    #
+    # This function cretes the slownes grid
+    #
+function _xygrid(slow0::Vector{T}, sloint::T, slomax::T) where T<:Real
+
+    # define the size of the grid
+    nite    = 1 + 2*round(Int64, slomax/sloint)
+    
+    # init the grid in memeory
+    xy_grid = Array{T}(undef, nite, nite, 2)
+    
+    # fill the grid
+    for ii in 1:nite, jj in 1:nite
+        px = slow0[1] - slomax + sloint*(ii-1)
+        # pxi = pinc * px/pinc
+        py = slow0[2] - slomax + sloint*(ii-1)
+        # pyj = pinc * py/pinc
+        xy_grid[ii,jj,:] = [px,py]
+    end
+    
+    xy_grid[:,:,2] = adjoint(xy_grid[:,:,2])
+    
+    return xy_grid
+end
+
+    #
+    # This function cretes the deltatime grid
+    #
+function _dtimemap(dtime_func::Function, pxy_map::Array{T}, nsta::J) where {T<:Real, J<:Integer}
+    
+    nite = size(pxy_map, 1)
+    time_map = Array{T}(undef, nite, nite, nsta)
+    
+    for ii in 1:nite, jj in 1:nite 
+        time_map[ii,jj,:] = dtime_func(pxy_map[ii,jj,:])
+    end
+
+    return time_map
+end
+
 
 """
    _dtimefunc(*args)
@@ -35,13 +76,6 @@ function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J) where {T<:Real, J<:
     return dtime
 end
 
-# function _dtimefunc(stax::Array{T}, stay::Array{T}, fsem::J, epi::T) where {T<:Real, J<:Integer}
-#     xref = mean(stax)
-#     yref = mean(stay)
-#     dtime(pxy) = [ sqrt((hypot(pxy[1], pxy[2])*stx-pxy[1]*epi)**2 + (hypot(pxy[1], pxy[2])*sty-pxy[2]*epi)**2) - sqrt((hypot(pxy[1], pxy[2])*xref-pxy[1]*epi)**2 + (hypot(pxy[1], pxy[2])*yref-pxy[2]*epi)**2) for (stx, sty) in zip(stax,stay) ] .* fsem
-#     return dtime
-# end
-
 
 function _cciter(nsta::J) where J<:Integer
   
@@ -53,6 +87,58 @@ function _cciter(nsta::J) where J<:Integer
   end
 
   return cciter
+end
+
+"""
+  get_dtimes(x, y)
+    
+    Devuelve delta times correspondientes a un slowness y un azimuth
+    
+"""
+function get_dtimes(slow::T, bazm::T, slow0::Vector{T}, slomax::T, sloint::T, fsem::J, xStaUTM::Array{T}, yStaUTM::Array{T}) where {T<:Real, J<:Integer}
+
+  nsta  = length(xStaUTM)
+  pxy, pij   = p2r(slow, bazm, slow0, slomax, sloint)
+  dtime      = _dtimefunc(xStaUTM, yStaUTM, fsem)
+  slow_grid  = _xygrid(slow0, sloint, slomax)
+  time_grid  = _dtimemap(dtime, slow_grid, nsta)
+
+  return pxy, time_grid[pij[1], pij[2], :]
+end
+
+
+"""
+  p2r(x, y)
+    
+    Get slowness vector
+    
+"""
+function p2r(slow::T, bazm::T, slow0::Vector{T}, slomax::T, sloint::T) where T<:Real
+  if 0 <= bazm <= 90
+     px = -slow*sin(deg2rad(bazm))
+     py = -slow*cos(deg2rad(bazm))
+  end
+
+  if 90 < bazm <= 180
+     px = -1*slow*cos(deg2rad(bazm-90))
+     py = slow*sin(deg2rad(bazm-90))
+  end
+
+  if 180 < bazm <= 270
+     px = slow*sin(deg2rad(bazm-180))
+     py = slow*cos(deg2rad(bazm-180))
+  end
+
+  if 270 < bazm <= 360
+     px = slow*cos(deg2rad(bazm-270))
+     py = -1*slow*sin(deg2rad(bazm-270))
+  end
+
+  # seach position on grid
+  pxi = 1 + ((px - slow0[1] + slomax) / sloint)
+  pyj = 1 + ((py - slow0[2] + slomax) / sloint)
+
+  return [px, py], round.(Int64, [pxi, pyj])
 end
 
 

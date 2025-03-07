@@ -10,7 +10,7 @@ module SAP
     using LinearAlgebra
     using Statistics
     
-    export CC8, get_dtimes, array_response, mpm, slobaztmap
+    export CC8, get_dtimes, array_response, p2r
 
     include("types.jl")
 
