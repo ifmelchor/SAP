@@ -14,15 +14,16 @@ end
 
 
 struct Base{J<:Integer}
-  nite    :: J
+  nite    :: J              #  --> slowness grid nite x nite
   nwin    :: J              #  --> number of time windows
   nsta    :: J              #  --> number of stations
   lwin    :: J              #  --> time window length
   citer   :: Vector{Tuple{J,J}}
+  slow2   :: Bool
 end
 
 
-mutable struct ArrayResponse{T<:Real}
+mutable struct ATF{T<:Real}
     freqs :: AbstractArray{T}
     x     :: AbstractArray{T}
     y     :: AbstractArray{T}
