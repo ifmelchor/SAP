@@ -15,6 +15,7 @@ end
 
 struct Base{J<:Integer}
   nite    :: J              #  --> slowness grid nite x nite
+  nite2   :: J              #  --> slowness grid nite x nite
   nwin    :: J              #  --> number of time windows
   nsta    :: J              #  --> number of stations
   lwin    :: J              #  --> time window length

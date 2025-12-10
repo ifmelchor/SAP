@@ -5,7 +5,7 @@
 
 # Main ZLCC codes
 
-function zlcc(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, sloint::T, fqband::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, toff::J, slow0::Vector{T}=[0., 0.], ccerr::T=0.95, slow2::Bool=True, maac_thr::T=0.6, slomax2::T=0.3, sloint2::T=0.02) where {T<:Real, J<:Integer}
+function zlcc(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, sloint::T, fqband::Vector{T}, fsem::J, lwin::J, nwin::J, nadv::T, toff::J, slow0::Vector{T}=[0., 0.], ccerr::T=0.95, slow2::Bool=True, maac_thr::T=0.5, slomax2::T=0.3, sloint2::T=0.02) where {T<:Real, J<:Integer}
     
     # define base params
     nsta   = length(xStaUTM) # nro of stations
@@ -15,21 +15,20 @@ function zlcc(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, s
 
     if slow2
         nite2  = 1 + 2*round(Int64, slomax2/sloint2) # slowness grid2
+    else
+        nite2 = 0
     end
 
     # base object for crosscorrelation
-    base   = Base(nite, nwin, nsta, lwin, cciter, slow2)
-
-    # compute base error of the array response
-    # arresp = array_transfunc(xStaUTM, yStaUTM, slomax, sloint, fqband[1], fqband[2], 0.05)
-    # powar = reshape(arresp.power,1,:)
-    # base_error = 100*sum(powar .> ccerr)/(nite*nite)
+    base   = Base(nite, nite2, nwin, nsta, lwin, cciter, slow2)
 
     # init empty dictionary
     dict = _empty_dict(base)
     
     # create slowness main grid
     slow_grid  = _xygrid(slow0, sloint, slomax)
+    sx = xy_grid[1, :, 2]
+    sy = xy_grid[:, 1, 1]
 
     # create deltatimes grid
     dtime     = _dtimefunc(xStaUTM, yStaUTM, fsem) # define delta time function
@@ -51,48 +50,70 @@ function zlcc(data::Array{T}, xStaUTM::Array{T}, yStaUTM::Array{T}, slomax::T, s
         (ii, jj)   = ccmax[2].I
         best_slow  = slow_grid[ii, jj, :]
 
-        # get slow, baz, and rms
-        slow, bazm = r2p(-1 .* best_slow)
-        bounds     = _bounds(ccmap, slow_grid, maac*ccerr)
-        rms        = _rms(data, n0, time_grid[ii, jj, :], base)
+        # save data pf the iteration
+        dict["maac"][nk]   = maac
+        dict["slowmap"][nk,:,:] = ccmap
 
-        # compue error [%]
-        npts  = sum(reshape(ccmap,1,:) .> maac*ccerr)
-        error = 100*npts/(nite*nite)
+        # compute contour
+        level = maac * ccerr
+        contours = contours(sx, sy, ccmap, level)
+        cl = lines(levels(c)[1])
+        nro_contornos = length(cl)
 
-        # compute slow2 onyl when maac is above threshold
-        if slow2 && maac > maac_thr
-            slow_grid2 = _xygrid(best_slow, sloint2, slomax2)
-            time_grid2 = _dtimemap(dtime, slow_grid2, nsta)
-            ccmap2 = _ccmap(data, n0, time_grid2, nite2, base)
-            ccmax2 = findmax(ccmap2)
-            # update maac
-            maac = ccmax2[1]
-            (ii, jj)    = ccmax2[2].I
-            # update rms
-            rms  = _rms(data, n0, time_grid2[ii, jj, :], base)
-            best_slow2  = slow_grid2[ii, jj, :]
-            slo2, baz2  = r2p(-1 .* best_slow2)
+        if nro_contornos > 1
+            # si hay mas de un contorno, descarta el analisis
+            slow = bazm = rms = NaN
+            bazbnd = slobnd = [NaN,NaN]
         else
-            slo2 = NaN
-            baz2 = NaN
+            # calcula la incertidumbre
+            Xs, Ys = coordinates(cl[1])
+            ang_rad = atan.(-1 .* Ys, -1 .* Xs)
+            ang = rad2deg.(ang_rad)
+            ang = @. ifelse(ang < 0, ang + 360.0, ang)
+            ang_max = maximum(ang)
+            ang_min = minimum(ang)
+
+            unc_lin = ang_max - ang_min
+            unc_com = 360.0 - unc_lin
+
+            if unc_lin <= unc_com
+                baz_max = ang_max
+                baz_min = ang_min
+            else
+                baz_max = ang_min
+                baz_min = ang_max
+            end
+            bazbnd = [baz_min, baz_max]
+
+            s_app = hypot.(Xs, Ys)
+            s_max = maximum(s_app)
+            s_min = minimum(s_app)
+            slobnd = [s_min, s_max]
+
+            if slow2 && maac > maac_thr
+                # compute slownes map with higher precision
+                slow_grid2 = _xygrid(best_slow, sloint2, slomax2)
+                time_grid2 = _dtimemap(dtime, slow_grid2, nsta)
+                ccmap2 = _ccmap(data, n0, time_grid2, nite2, base)
+                ccmax2 = findmax(ccmap2)
+                (ii, jj)    = ccmax2[2].I
+                best_slow2  = slow_grid2[ii, jj, :]
+                slow, bazm  = r2p(-1 .* best_slow2)
+                rms  = _rms(data, n0, time_grid2[ii, jj, :], base)
+            else
+                # get slow, baz and rms
+                slow, bazm = r2p(-1 .* best_slow)
+                rms = _rms(data, n0, time_grid[ii, jj, :], base)
+            end
         end
 
-        # save values into dict
-        dict["maac"][nk]   = maac
+        # save more data
         dict["rms"][nk]    = rms
-        dict["error"][nk]  = error
-        dict["slowmap"][nk,:,:] = ccmap
         dict["slow"][nk]   = slow
         dict["baz"][nk]    = bazm
-        dict["slowbnd"][nk,:] = [bounds.slomin, bounds.slomax]
-        dict["bazbnd"][nk,:]  = [bounds.azimin, bounds.azimax]
-        
-        if slow2
-            dict["slow2"][nk]  = slo2
-            dict["baz2"][nk]   = baz2
-        end
-    
+        dict["slowbnd"][nk,:] = slobnd
+        dict["bazbnd"][nk,:]  = bazbnd
+
     end
 
     return dict

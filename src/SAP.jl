@@ -9,6 +9,7 @@ module SAP
 
     using LinearAlgebra
     using Statistics
+    using Contour
     
     export zlcc, get_dtimes, array_transfunc, p2r
 

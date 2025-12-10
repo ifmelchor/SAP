@@ -15,18 +15,23 @@ Genera un dict vacio para llenar durante el procesado.
 function _empty_dict(base::Base)
     dict = Dict()
     
-    for attr in ("slow", "baz", "maac", "rms", "error")
+    # for attr in ("slow", "baz", "maac", "rms", "error")
+    for attr in ("maac", "rms")
         dict[attr] = Array{Float64}(undef, base.nwin)
     end
     
-    if base.slow2
-        dict["slow2"] = Array{Float64}(undef, base.nwin)
-        dict["baz2"] = Array{Float64}(undef, base.nwin)
-    end
+    # dict["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
+    # dict["bazbnd"] = Array{Float64}(undef, base.nwin, 2)
+    # if base.slow2
+    #     dict["slow2"] = Array{Float64}(undef, base.nwin)
+    #     dict["baz2"] = Array{Float64}(undef, base.nwin)
+    # end
 
     dict["slowmap"] = Array{Float64}(undef, base.nwin, base.nite, base.nite)
-    dict["slowbnd"] = Array{Float64}(undef, base.nwin, 2)
-    dict["bazbnd"] = Array{Float64}(undef, base.nwin, 2)
+    
+    if base.slow2
+        dict["slowmap2"] = Array{Float64}(undef, base.nwin, base.nite2, base.nite2)
+    end
 
     return dict
 end
@@ -211,77 +216,6 @@ function _ijbound(arr::AbstractArray{T}, cclim::T) where T<:Real
 
   return true, (i,pos+j)
 end
-
-"""
-  _bounds(*args)
-    
-    Get slowness and back-azimuth bounds
-    by drawing a circle over the maac
-    Ivan's way
-    
-"""
-function _bounds(slomap::AbstractArray{T}, slogrd::AbstractArray{T}, cclim::T) where T<:Real
-
-  # get maac position
-  ccmax = findmax(slomap)
-  (i0, j0) = ccmax[2].I
-  iarr  = slomap[i0,:]
-  jarr  = slomap[:,j0]
-
-  check1, pnts1 = _ijbound(iarr, cclim)
-  check2, pnts2 = _ijbound(jarr, cclim)
-
-  if check1 && check2
-    j1, j2 = pnts1
-    i1, i2 = pnts2
-
-    p1 = slogrd[i1, j0, :]
-    p2 = slogrd[i2, j0, :]
-    p3 = slogrd[i0, j1, :]
-    p4 = slogrd[i0, j2, :]
-
-    slo1, baz1 = r2p(-1 .* p1)
-    slo2, baz2 = r2p(-1 .* p2)
-    slo3, baz3 = r2p(-1 .* p3)
-    slo4, baz4 = r2p(-1 .* p4)
-
-    # println(baz1," ",baz2," ",baz3," ",baz4)
-
-    bazlist = [baz1,baz2,baz3,baz4]
-    slolist = [slo1,slo2,slo3,slo4]
-
-    max_diff = -1.0
-    posij = (-1,-1)
-
-    for i in 1:4
-          for j in (i+1):4
-              bazi = bazlist[i]
-              bazj = bazlist[j]
-              diff = abs(bazi - bazj)
-              circdiff = min(diff, 360-diff)
-              if circdiff > max_diff
-                  max_diff = circdiff
-                  if bazi < bazj
-                    posij = (i, j)
-                  else
-                    posij = (j, i)
-                  end
-              end
-          end
-    end
-
-    bnd = Bounds(bazlist[posij[1]], bazlist[posij[2]], slolist[posij[1]], slolist[posij[2]])
-
-  else
-
-    bnd = Bounds(-666., 666., -666., 666.)
-
-  end
-
-  return bnd
-end
-
-
 
 """
   bm2(*args)
